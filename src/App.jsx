@@ -20,10 +20,46 @@ import {
     DollarSign,
     Phone,
     X,
-    Check
+    Check,
+    AlertCircle,
+    Star,
+    Link as LinkIcon,
+    Copy
 } from 'lucide-react';
 
-// Componente de Barra de Progreso "Gris a Verde" (según notas del usuario)
+// ========== SISTEMA DE TOASTS ==========
+const Toast = ({ message, type = 'info', onClose }) => {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    const styles = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-red-600 text-white',
+        warning: 'bg-amber-600 text-white',
+        info: 'bg-blue-600 text-white'
+    };
+
+    return (
+        <div className={`${styles[type]} px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top duration-300`}>
+            <span className="font-bold text-sm">{message}</span>
+            <button onClick={onClose} className="ml-2">
+                <X size={16} />
+            </button>
+        </div>
+    );
+};
+
+const ToastContainer = ({ toasts, removeToast }) => (
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] space-y-2 w-full max-w-md px-4">
+        {toasts.map(toast => (
+            <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
+        ))}
+    </div>
+);
+
+// ========== COMPONENTE DE BARRA DE PROGRESO ==========
 const MatchmakingBar = ({ current, max }) => {
     const percentage = (current / max) * 100;
     const isFull = current === max;
@@ -44,18 +80,563 @@ const MatchmakingBar = ({ current, max }) => {
     );
 };
 
+// ========== MODAL CREAR PARTIDO (JUGADOR) ==========
+const CreateMatchModal = ({ onClose, onCreate, userRanking }) => {
+    const [formData, setFormData] = useState({
+        city: '',
+        gender: 'mixto',
+        minAge: '',
+        maxAge: '',
+        minRanking: 1,
+        totalPlayers: 10
+    });
+
+    const cities = ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata', 'Mar del Plata'];
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.city) return;
+        onCreate(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] flex items-end justify-center animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 animate-in slide-in-from-bottom duration-300">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-slate-800">Crear Partido</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Ciudad */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Ciudad</label>
+                        <select
+                            value={formData.city}
+                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            required
+                        >
+                            <option value="">Seleccioná una ciudad</option>
+                            {cities.map(city => (
+                                <option key={city} value={city}>{city}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Género */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Género</label>
+                        <div className="flex gap-2">
+                            {['mixto', 'masculino', 'femenino'].map(g => (
+                                <button
+                                    key={g}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, gender: g })}
+                                    className={`flex-1 py-2 rounded-xl font-bold text-sm capitalize ${formData.gender === g
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                >
+                                    {g}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Edad */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Edad Mín.</label>
+                            <input
+                                type="number"
+                                value={formData.minAge}
+                                onChange={(e) => setFormData({ ...formData, minAge: e.target.value })}
+                                placeholder="18"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Edad Máx.</label>
+                            <input
+                                type="number"
+                                value={formData.maxAge}
+                                onChange={(e) => setFormData({ ...formData, maxAge: e.target.value })}
+                                placeholder="50"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Ranking Mínimo */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Nivel Mínimo</label>
+                        <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map(rank => (
+                                <button
+                                    key={rank}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, minRanking: rank })}
+                                    className={`flex-1 py-3 rounded-xl font-bold ${formData.minRanking === rank
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                >
+                                    {rank}★
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Jugadores */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Total de Jugadores</label>
+                        <select
+                            value={formData.totalPlayers}
+                            onChange={(e) => setFormData({ ...formData, totalPlayers: parseInt(e.target.value) })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                        >
+                            <option value={6}>6 (3 vs 3)</option>
+                            <option value={8}>8 (4 vs 4)</option>
+                            <option value={10}>10 (5 vs 5)</option>
+                            <option value={12}>12 (6 vs 6)</option>
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-200 active:scale-95 transition-transform"
+                    >
+                        Crear Partido
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// ========== MODAL CREAR PARTIDO (DUEÑO) ==========
+const OwnerCreateMatchModal = ({ onClose, onCreate }) => {
+    const [formData, setFormData] = useState({
+        court: '',
+        time: '',
+        type: 'public',
+        gender: 'mixto',
+        minAge: '',
+        maxAge: '',
+        minRanking: 1,
+        totalPlayers: 10,
+        price: ''
+    });
+
+    const [shareLink, setShareLink] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const newMatch = {
+            ...formData,
+            id: Date.now(),
+            players: 0,
+            status: 'active'
+        };
+
+        if (formData.type === 'private') {
+            const link = `https://matchup.app/partido/${newMatch.id}`;
+            setShareLink(link);
+        } else {
+            onCreate(newMatch);
+            onClose();
+        }
+    };
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(shareLink);
+    };
+
+    const shareWhatsApp = () => {
+        const message = `¡Unite al partido! ${shareLink}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    };
+
+    if (shareLink) {
+        return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] flex items-end justify-center animate-in fade-in duration-200">
+                <div className="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 animate-in slide-in-from-bottom duration-300">
+                    <div className="text-center space-y-4">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                            <Check size={32} className="text-emerald-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800">¡Partido Creado!</h2>
+                        <p className="text-sm text-slate-600">Compartí este link para que se sumen</p>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-dashed border-slate-300">
+                            <p className="text-xs text-slate-600 break-all font-mono">{shareLink}</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={copyToClipboard}
+                                className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                            >
+                                <Copy size={18} />
+                                Copiar
+                            </button>
+                            <button
+                                onClick={shareWhatsApp}
+                                className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                            >
+                                <Phone size={18} />
+                                WhatsApp
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={onClose}
+                            className="w-full text-slate-600 py-2 font-bold"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] flex items-end justify-center animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-slate-800">Crear Partido Rápido</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Tipo */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Partido</label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, type: 'public' })}
+                                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 ${formData.type === 'public'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-100 text-slate-600'
+                                    }`}
+                            >
+                                <Users size={18} />
+                                Público
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, type: 'private' })}
+                                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 ${formData.type === 'private'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-100 text-slate-600'
+                                    }`}
+                            >
+                                <Lock size={18} />
+                                Privado
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Cancha y Hora */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Cancha</label>
+                            <select
+                                value={formData.court}
+                                onChange={(e) => setFormData({ ...formData, court: e.target.value })}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                                required
+                            >
+                                <option value="">Elegir</option>
+                                <option value="Cancha 1">Cancha 1</option>
+                                <option value="Cancha 2">Cancha 2</option>
+                                <option value="Cancha 3">Cancha 3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Hora</label>
+                            <input
+                                type="time"
+                                value={formData.time}
+                                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Precio */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Precio por Persona</label>
+                        <input
+                            type="number"
+                            value={formData.price}
+                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                            placeholder="1500"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            required
+                        />
+                    </div>
+
+                    {/* Género */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Género</label>
+                        <div className="flex gap-2">
+                            {['mixto', 'masculino', 'femenino'].map(g => (
+                                <button
+                                    key={g}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, gender: g })}
+                                    className={`flex-1 py-2 rounded-xl font-bold text-sm capitalize ${formData.gender === g
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                >
+                                    {g}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Edad */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Edad Mín.</label>
+                            <input
+                                type="number"
+                                value={formData.minAge}
+                                onChange={(e) => setFormData({ ...formData, minAge: e.target.value })}
+                                placeholder="18"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Edad Máx.</label>
+                            <input
+                                type="number"
+                                value={formData.maxAge}
+                                onChange={(e) => setFormData({ ...formData, maxAge: e.target.value })}
+                                placeholder="50"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Ranking */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Nivel Mínimo</label>
+                        <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map(rank => (
+                                <button
+                                    key={rank}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, minRanking: rank })}
+                                    className={`flex-1 py-3 rounded-xl font-bold ${formData.minRanking === rank
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                >
+                                    {rank}★
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-200 active:scale-95 transition-transform"
+                    >
+                        {formData.type === 'private' ? 'Crear y Generar Link' : 'Crear Partido'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// ========== MODAL ASIGNAR CANCHA ==========
+const AssignCourtModal = ({ match, onClose, onAssign }) => {
+    const [courtNumber, setCourtNumber] = useState('');
+
+    const handleAssign = () => {
+        if (courtNumber) {
+            onAssign(match.id, courtNumber);
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] flex items-center justify-center animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-sm mx-4 rounded-3xl p-6 space-y-4 animate-in zoom-in duration-300">
+                <div className="text-center space-y-2">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                        <Bell size={32} className="text-emerald-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800">¡Partido Listo!</h2>
+                    <p className="text-sm text-slate-600">
+                        El partido llegó a 5 jugadores. Asigná una cancha.
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Número de Cancha</label>
+                    <select
+                        value={courtNumber}
+                        onChange={(e) => setCourtNumber(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none font-medium"
+                    >
+                        <option value="">Seleccionar cancha</option>
+                        <option value="Cancha 1">Cancha 1</option>
+                        <option value="Cancha 2">Cancha 2</option>
+                        <option value="Cancha 3">Cancha 3</option>
+                    </select>
+                </div>
+
+                <div className="flex gap-2">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold"
+                    >
+                        Después
+                    </button>
+                    <button
+                        onClick={handleAssign}
+                        disabled={!courtNumber}
+                        className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Asignar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const App = () => {
     const [role, setRole] = useState('player'); // 'player' o 'owner'
     const [activeTab, setActiveTab] = useState('inicio');
-    const [selectedDate, setSelectedDate] = useState(0); // índice del día seleccionado
-    const [selectedCourt, setSelectedCourt] = useState('all'); // 'all', 'cancha1', 'cancha2'
+    const [selectedDate, setSelectedDate] = useState(0);
+    const [selectedCourt, setSelectedCourt] = useState('all');
 
-    // Datos Mock para la Demo
-    const matches = [
-        { id: 1, court: "Cancha El Diez", time: "19:00", type: "Público", players: 8, total: 10, price: 1500, status: "active" },
-        { id: 2, court: "Predio Central", time: "21:30", type: "Privado", players: 4, total: 10, price: 2000, status: "locked" },
-        { id: 3, court: "La Bombonerita", time: "23:00", type: "Público", players: 10, total: 10, price: 1200, status: "full" },
-    ];
+    // Estados para funcionalidad
+    const [toasts, setToasts] = useState([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(null);
+    const [matches, setMatches] = useState([
+        { id: 1, court: "Cancha El Diez", city: "Buenos Aires", time: "19:00", type: "Público", players: 8, total: 10, price: 1500, status: "active", minRanking: 2, gender: "mixto" },
+        { id: 2, court: "Predio Central", city: "Córdoba", time: "21:30", type: "Privado", players: 4, total: 10, price: 2000, status: "locked", minRanking: 3, gender: "masculino" },
+        { id: 3, court: "La Bombonerita", city: "Buenos Aires", time: "23:00", type: "Público", players: 10, total: 10, price: 1200, status: "full", minRanking: 1, gender: "mixto" },
+    ]);
+    const [joinedMatches, setJoinedMatches] = useState([]);
+
+    // Perfil del usuario (simulado)
+    const userProfile = {
+        name: 'Leo',
+        ranking: 3,
+        age: 25,
+        gender: 'masculino'
+    };
+
+    // Sistema de Toasts
+    const addToast = (message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+    };
+
+    const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
+    // Crear partido
+    const handleCreateMatch = (formData) => {
+        const newMatch = {
+            id: Date.now(),
+            court: "Por Confirmar",
+            city: formData.city,
+            time: "Por Confirmar",
+            type: "Público",
+            players: 1,
+            total: formData.totalPlayers,
+            price: 0,
+            status: "active",
+            minRanking: formData.minRanking,
+            gender: formData.gender,
+            minAge: formData.minAge,
+            maxAge: formData.maxAge,
+            createdBy: userProfile.name
+        };
+
+        setMatches(prev => [newMatch, ...prev]);
+        setJoinedMatches(prev => [...prev, newMatch.id]);
+        addToast('¡Partido creado exitosamente!', 'success');
+    };
+
+    // Unirse a partido
+    const handleJoinMatch = (matchId) => {
+        const match = matches.find(m => m.id === matchId);
+
+        // Validaciones
+        if (match.players >= match.total) {
+            addToast('El partido está completo', 'error');
+            return;
+        }
+
+        if (userProfile.ranking < match.minRanking) {
+            addToast(`No cumplís con el nivel mínimo requerido (${match.minRanking}★)`, 'error');
+            return;
+        }
+
+        if (joinedMatches.includes(matchId)) {
+            addToast('Ya estás en este partido', 'warning');
+            return;
+        }
+
+        // Unirse
+        setMatches(prev => prev.map(m =>
+            m.id === matchId
+                ? { ...m, players: m.players + 1 }
+                : m
+        ));
+        setJoinedMatches(prev => [...prev, matchId]);
+        addToast('¡Te uniste al partido!', 'success');
+
+        // Notificar al dueño si llega a 5
+        const updatedMatch = matches.find(m => m.id === matchId);
+        if (updatedMatch && updatedMatch.players + 1 === 5 && role === 'owner') {
+            setTimeout(() => {
+                setShowAssignModal(updatedMatch);
+            }, 500);
+        }
+    };
+
+    // Salir de partido
+    const handleLeaveMatch = (matchId) => {
+        setMatches(prev => prev.map(m =>
+            m.id === matchId
+                ? { ...m, players: Math.max(0, m.players - 1) }
+                : m
+        ));
+        setJoinedMatches(prev => prev.filter(id => id !== matchId));
+        addToast('Saliste del partido', 'info');
+    };
+
+    // Asignar cancha
+    const handleAssignCourt = (matchId, courtNumber) => {
+        setMatches(prev => prev.map(m =>
+            m.id === matchId
+                ? { ...m, court: courtNumber, status: 'reserved' }
+                : m
+        ));
+        addToast(`Cancha ${courtNumber} asignada`, 'success');
+    };
 
     const balances = [
         { label: "Hoy", amount: "$45.000", growth: "+12%" },
@@ -128,7 +709,10 @@ const App = () => {
 
             {/* Acciones Rápidas */}
             <section className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                <button className="flex flex-col items-center gap-2 min-w-[80px]">
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex flex-col items-center gap-2 min-w-[80px]"
+                >
                     <div className="bg-emerald-600 p-4 rounded-2xl text-white shadow-lg shadow-emerald-200">
                         <PlusCircle size={24} />
                     </div>
@@ -195,8 +779,8 @@ const App = () => {
                         <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-bold text-slate-800 leading-none">Hola, Leo</h1>
-                        <p className="text-xs text-slate-500 font-medium">Buscá un partido hoy</p>
+                        <h1 className="text-lg font-bold text-slate-800 leading-none">Hola, {userProfile.name}</h1>
+                        <p className="text-xs text-slate-500 font-medium">Nivel {userProfile.ranking}★ • Buscá un partido</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -206,14 +790,14 @@ const App = () => {
                 </div>
             </header>
 
-            {/* Status Cards (Inasistencias / Reputación - "Tarjetas" en las notas) */}
+            {/* Status Cards */}
             <section className="bg-slate-900 rounded-[2rem] p-5 text-white flex items-center justify-between overflow-hidden relative shadow-xl shadow-emerald-100">
                 <div className="space-y-1 relative z-10">
-                    <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Nivel Pro</p>
+                    <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Nivel {userProfile.ranking}★</p>
                     <h2 className="text-xl font-bold leading-tight">Tu conducta es impecable</h2>
                     <div className="flex gap-2 mt-2">
                         <span className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg backdrop-blur-sm">0 Inasistencias</span>
-                        <span className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg backdrop-blur-sm">5★ Rating</span>
+                        <span className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg backdrop-blur-sm">{userProfile.ranking}★ Rating</span>
                     </div>
                 </div>
                 <div className="absolute right-[-20px] bottom-[-20px] text-emerald-500/20 rotate-12">
@@ -231,45 +815,66 @@ const App = () => {
                     </div>
                 </div>
 
-                {matches.filter(m => m.type === 'Público').map((m) => (
-                    <div key={m.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 hover:border-emerald-200 transition-colors">
-                        <div className="flex justify-between items-start">
-                            <div className="flex gap-3">
-                                <div className="bg-emerald-50 p-3 rounded-2xl text-emerald-600">
-                                    <MapPin size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-800">{m.court}</h3>
-                                    <div className="flex items-center gap-3 text-slate-500 text-xs font-medium">
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {m.time} HS</span>
-                                        <span className="flex items-center gap-1"><Users size={12} /> {m.total / 2} vs {m.total / 2}</span>
+                {matches.filter(m => m.type === 'Público').map((m) => {
+                    const isJoined = joinedMatches.includes(m.id);
+                    const isFull = m.players >= m.total;
+
+                    return (
+                        <div key={m.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 hover:border-emerald-200 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div className="flex gap-3">
+                                    <div className="bg-emerald-50 p-3 rounded-2xl text-emerald-600">
+                                        <MapPin size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800">{m.court}</h3>
+                                        <div className="flex items-center gap-3 text-slate-500 text-xs font-medium">
+                                            <span className="flex items-center gap-1"><Clock size={12} /> {m.time} HS</span>
+                                            <span className="flex items-center gap-1"><Users size={12} /> {m.total / 2} vs {m.total / 2}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-600">
+                                                Nivel {m.minRanking}★+
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 capitalize">{m.gender}</span>
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-black text-slate-800">${m.price}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Por Persona</p>
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-lg font-black text-slate-800">${m.price}</p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Por Persona</p>
+
+                            <MatchmakingBar current={m.players} max={m.total} />
+
+                            <div className="pt-2 flex gap-3">
+                                {isJoined ? (
+                                    <button
+                                        onClick={() => handleLeaveMatch(m.id)}
+                                        className="flex-1 font-bold py-3 rounded-2xl shadow-lg bg-red-600 text-white shadow-red-100 active:scale-95 transition-all"
+                                    >
+                                        Salir del Partido
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleJoinMatch(m.id)}
+                                        disabled={isFull}
+                                        className={`flex-1 font-bold py-3 rounded-2xl shadow-lg transition-all ${isFull
+                                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                            : 'bg-emerald-600 text-white shadow-emerald-100 active:scale-95'
+                                            }`}
+                                    >
+                                        {isFull ? 'Partido Completo' : 'Unirme ahora'}
+                                    </button>
+                                )}
+                                <button className="bg-slate-100 text-slate-600 p-3 rounded-2xl active:scale-95 transition-transform">
+                                    <MessageSquare size={20} />
+                                </button>
                             </div>
                         </div>
-
-                        <MatchmakingBar current={m.players} max={m.total} />
-
-                        <div className="pt-2 flex gap-3">
-                            <button
-                                disabled={m.status === 'full'}
-                                className={`flex-1 font-bold py-3 rounded-2xl shadow-lg transition-all ${m.status === 'full'
-                                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                    : 'bg-emerald-600 text-white shadow-emerald-100 active:scale-95'
-                                    }`}
-                            >
-                                {m.status === 'full' ? 'Partido Completo' : 'Unirme ahora'}
-                            </button>
-                            <button className="bg-slate-100 text-slate-600 p-3 rounded-2xl active:scale-95 transition-transform">
-                                <MessageSquare size={20} />
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </section>
         </div>
     );
@@ -457,6 +1062,36 @@ const App = () => {
     return (
         <div className="max-w-md mx-auto bg-slate-50 min-h-screen font-sans relative shadow-2xl overflow-hidden border-x border-slate-200">
 
+            {/* Toast Container */}
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+            {/* Modales */}
+            {showCreateModal && role === 'player' && (
+                <CreateMatchModal
+                    onClose={() => setShowCreateModal(false)}
+                    onCreate={handleCreateMatch}
+                    userRanking={userProfile.ranking}
+                />
+            )}
+
+            {showCreateModal && role === 'owner' && (
+                <OwnerCreateMatchModal
+                    onClose={() => setShowCreateModal(false)}
+                    onCreate={(match) => {
+                        setMatches(prev => [match, ...prev]);
+                        addToast('Partido creado exitosamente', 'success');
+                    }}
+                />
+            )}
+
+            {showAssignModal && (
+                <AssignCourtModal
+                    match={showAssignModal}
+                    onClose={() => setShowAssignModal(null)}
+                    onAssign={handleAssignCourt}
+                />
+            )}
+
             {/* Switcher de Vista (Para propósitos de Demo) */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md px-1 py-1 rounded-full border border-slate-200 shadow-sm flex gap-1">
                 <button
@@ -496,7 +1131,10 @@ const App = () => {
                     <span className="text-[10px] font-bold">Turnos</span>
                 </button>
                 <div className="relative -top-4">
-                    <button className="bg-emerald-600 text-white p-4 rounded-full shadow-lg shadow-emerald-200 ring-4 ring-slate-50 active:scale-90 transition-transform">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-emerald-600 text-white p-4 rounded-full shadow-lg shadow-emerald-200 ring-4 ring-slate-50 active:scale-90 transition-transform"
+                    >
                         <PlusCircle size={28} />
                     </button>
                 </div>
