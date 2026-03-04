@@ -363,13 +363,6 @@ export const OwnerScheduleView = ({
                 />
             )}
 
-            {/* ── FAB ── */}
-            <button
-                onClick={() => setBookingModal({ court: courts[0], date: dateStr, time: '18:00' })}
-                className="fixed bottom-24 right-6 w-14 h-14 bg-slate-900 dark:bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all border-4 border-white dark:border-slate-900 z-50"
-            >
-                <PlusCircle size={24} />
-            </button>
         </div>
     );
 };
