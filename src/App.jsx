@@ -127,7 +127,7 @@ const App = () => {
             minAge: formData.minAge || 0,
             maxAge: formData.maxAge || 99,
             totalPlayers: formData.totalPlayers || 10,
-            playerIds: [currentUser.id],
+            playerIds: role === 'owner' ? [] : [currentUser.id],
             createdBy: currentUser.id,
             status: 'open',
             price: parseFloat(formData.price) || 0,
